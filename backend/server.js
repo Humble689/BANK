@@ -1,9 +1,9 @@
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const { connectDB } = require('./config/database');
 
 const app = express();
 
@@ -15,12 +15,7 @@ app.use(helmet());
 app.use(morgan('dev'));
 
 // Database connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/bankingapp', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+connectDB();
 
 // Routes
 app.use('/api/auth', require('./routes/auth.routes'));
@@ -32,11 +27,18 @@ app.use('/api/messages', require('./routes/message.routes'));
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).json({
+    res.status(err.status || 500).json({
         success: false,
-        message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        message: err.message || 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? err : undefined
     });
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+    console.error('Unhandled Promise Rejection:', err);
+    // Close server & exit process
+    process.exit(1);
 });
 
 const PORT = process.env.PORT || 3000;
