@@ -72,21 +72,71 @@ Transaction.init({
         },
         afterCreate: async (transaction) => {
             if (transaction.status === 'COMPLETED') {
+                const t = await sequelize.transaction();
+                
                 try {
-                    const fromAccount = await sequelize.models.Account.findByPk(transaction.fromAccountId);
+                    const fromAccount = await sequelize.models.Account.findByPk(
+                        transaction.fromAccountId,
+                        { transaction: t, lock: true }
+                    );
                     
-                    if (transaction.type === 'TRANSFER' && transaction.toAccountId) {
-                        const toAccount = await sequelize.models.Account.findByPk(transaction.toAccountId);
-                        await fromAccount.updateBalance(transaction.amount, 'debit');
-                        await toAccount.updateBalance(transaction.amount, 'credit');
-                    } else if (transaction.type === 'WITHDRAWAL') {
-                        await fromAccount.updateBalance(transaction.amount, 'debit');
-                    } else if (transaction.type === 'DEPOSIT' || transaction.type === 'CHECK_DEPOSIT') {
-                        await fromAccount.updateBalance(transaction.amount, 'credit');
+                    if (!fromAccount) {
+                        throw new Error('Source account not found');
                     }
+
+                    if (transaction.type === 'TRANSFER' && transaction.toAccountId) {
+                        const toAccount = await sequelize.models.Account.findByPk(
+                            transaction.toAccountId,
+                            { transaction: t, lock: true }
+                        );
+                        
+                        if (!toAccount) {
+                            throw new Error('Destination account not found');
+                        }
+
+                        // Check sufficient funds
+                        if (fromAccount.balance < transaction.amount) {
+                            throw new Error('Insufficient funds');
+                        }
+
+                        // Update balances
+                        await fromAccount.decrement('balance', { 
+                            by: transaction.amount,
+                            transaction: t 
+                        });
+                        await toAccount.increment('balance', { 
+                            by: transaction.amount,
+                            transaction: t 
+                        });
+
+                    } else if (transaction.type === 'WITHDRAWAL') {
+                        if (fromAccount.balance < transaction.amount) {
+                            throw new Error('Insufficient funds');
+                        }
+                        await fromAccount.decrement('balance', { 
+                            by: transaction.amount,
+                            transaction: t 
+                        });
+                    } else if (transaction.type === 'DEPOSIT' || transaction.type === 'CHECK_DEPOSIT') {
+                        await fromAccount.increment('balance', { 
+                            by: transaction.amount,
+                            transaction: t 
+                        });
+                    }
+
+                    // Update transaction status
+                    transaction.completedAt = new Date();
+                    await transaction.save({ transaction: t });
+
+                    await t.commit();
                 } catch (error) {
-                    console.error('Error updating account balances:', error);
+                    await t.rollback();
+                    console.error('Error processing transaction:', error);
                     transaction.status = 'FAILED';
+                    transaction.metadata = {
+                        ...transaction.metadata,
+                        error: error.message
+                    };
                     await transaction.save();
                 }
             }
