@@ -1,6 +1,8 @@
 const User = require('./User');
 const Account = require('./Account');
 const Transaction = require('./Transaction');
+const Bill = require('./Bill');
+const Message = require('./Message');
 
 // User - Account associations
 User.hasMany(Account, {
@@ -30,8 +32,30 @@ Transaction.belongsTo(Account, {
     as: 'toAccount'
 });
 
+// User - Bill associations
+User.hasMany(Bill, {
+    foreignKey: 'userId',
+    as: 'bills'
+});
+Bill.belongsTo(User, {
+    foreignKey: 'userId',
+    as: 'user'
+});
+
+// User - Message associations
+User.hasMany(Message, {
+    foreignKey: 'userId',
+    as: 'messages'
+});
+Message.belongsTo(User, {
+    foreignKey: 'userId',
+    as: 'user'
+});
+
 module.exports = {
     User,
     Account,
-    Transaction
+    Transaction,
+    Bill,
+    Message
 }; 

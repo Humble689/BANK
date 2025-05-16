@@ -144,16 +144,4 @@ Transaction.init({
     }
 });
 
-// Define associations
-Transaction.associate = (models) => {
-    Transaction.belongsTo(models.Account, {
-        foreignKey: 'fromAccountId',
-        as: 'fromAccount'
-    });
-    Transaction.belongsTo(models.Account, {
-        foreignKey: 'toAccountId',
-        as: 'toAccount'
-    });
-};
-
 module.exports = Transaction; 
