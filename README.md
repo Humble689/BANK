@@ -52,7 +52,6 @@ A professional mobile banking system that provides secure and convenient banking
 - Password hashing with bcrypt
 - Session management
 - CORS protection
-travis
 
 ## API Documentation
 
