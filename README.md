@@ -13,7 +13,7 @@ A professional mobile banking system that provides secure and convenient banking
 - Account statements
 - Secure messaging system
 - Push notifications
-- Two-factor authentication
+- Two-factor authentication   
 
 ## Tech Stack
 
